@@ -1,0 +1,64 @@
+{
+  "surgicalRevenue": {
+    "currentValue": 75250,
+    "pytdValue": 68500,
+    "trendData": [
+      { "date": "Jan", "revenue": 62400 },
+      { "date": "Feb", "revenue": 58900 },
+      { "date": "Mar", "revenue": 61200 },
+      { "date": "Apr", "revenue": 63500 },
+      { "date": "May", "revenue": 67800 },
+      { "date": "Jun", "revenue": 72100 },
+      { "date": "Jul", "revenue": 69300 },
+      { "date": "Aug", "revenue": 71500 },
+      { "date": "Sep", "revenue": 74800 },
+      { "date": "Oct", "revenue": 77200 },
+      { "date": "Nov", "revenue": 79500 },
+      { "date": "Dec", "revenue": 75250 }
+    ]
+  },
+  "appointmentsScheduled": {
+    "currentValue": 147,
+    "pytdValue": 132,
+    "trendData": [
+      { "day": "Mon", "count": 24 },
+      { "day": "Tue", "count": 32 },
+      { "day": "Wed", "count": 28 },
+      { "day": "Thu", "count": 26 },
+      { "day": "Fri", "count": 18 },
+      { "day": "Sat", "count": 12 },
+      { "day": "Sun", "count": 7 }
+    ]
+  },
+  "cancellations": {
+    "currentValue": 12,
+    "pytdValue": 18,
+    "trendData": [
+      { "day": "Mon", "count": 3 },
+      { "day": "Tue", "count": 1 },
+      { "day": "Wed", "count": 2 },
+      { "day": "Thu", "count": 4 },
+      { "day": "Fri", "count": 1 },
+      { "day": "Sat", "count": 0 },
+      { "day": "Sun", "count": 1 }
+    ]
+  },
+  "activeBracesCases": {
+    "currentValue": 183,
+    "pytdValue": 159,
+    "trendData": [
+      { "month": "Jan", "count": 145 },
+      { "month": "Feb", "count": 152 },
+      { "month": "Mar", "count": 158 },
+      { "month": "Apr", "count": 162 },
+      { "month": "May", "count": 167 },
+      { "month": "Jun", "count": 170 },
+      { "month": "Jul", "count": 175 },
+      { "month": "Aug", "count": 171 },
+      { "month": "Sep", "count": 173 },
+      { "month": "Oct", "count": 178 },
+      { "month": "Nov", "count": 181 },
+      { "month": "Dec", "count": 183 }
+    ]
+  }
+}
