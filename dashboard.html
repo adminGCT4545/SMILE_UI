@@ -4,12 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smile Brands ERP Dashboard</title>
-  <!-- Load React dependencies -->
+  <!-- Load dependencies -->
   <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
-  <!-- Load Babel -->
   <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  
+  <!-- Initialize global state for chat -->
+  <script>
+    window.dashboardState = {};
+  </script>
 </head>
 <body class="bg-gray-100">
   <div id="root" class="container mx-auto p-4"></div>
@@ -82,7 +86,38 @@
     };
   </script>
   
+  <!-- Load chat components -->
+  <script src="./src/components/DashboardChat.js"></script>
+  <script src="./src/components/KynseyAIChatBridge.js"></script>
+  
   <script type="text/babel">
+    // KynseyAIChat component
+    function KynseyAIChat() {
+      const [isVisible, setIsVisible] = React.useState(false);
+      const chatContainerId = 'kynsey-ai-chat-container';
+      
+      React.useEffect(() => {
+        // Initialize chat bridge directly
+        const chatBridge = new KynseyAIChatBridge();
+        chatBridge.init(chatContainerId, (visible) => {
+          setIsVisible(visible);
+        });
+        
+        // Cleanup on unmount
+        return () => {
+          if (chatBridge) {
+            chatBridge.destroy();
+          }
+        };
+      }, []);
+      
+      return (
+        <div id="kynsey-ai-chat-root">
+          {/* Chat container will be managed by the vanilla JS implementation */}
+        </div>
+      );
+    }
+
     // TimePeriod options
     const TimePeriod = {
       day: 'day',
@@ -198,6 +233,12 @@
         // Simulate API call with timeout
         setTimeout(() => {
           setKpiData(SAMPLE_DATA);
+          // Update global state for chat context
+          window.dashboardState = {
+            kpiData: SAMPLE_DATA,
+            currentPeriod: selectedPeriod,
+            lastUpdated: new Date().toISOString()
+          };
           setIsLoading(false);
         }, 1000);
       }, [selectedPeriod]);
@@ -267,7 +308,8 @@
       };
       
       return (
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto relative">
+          <KynseyAIChat />
           <div className="bg-blue-50 p-6 mb-8 rounded-lg border border-blue-200">
             <h1 className="text-2xl font-bold text-blue-800 mb-2">
               Smile Brands ERP Dashboard Test Environment

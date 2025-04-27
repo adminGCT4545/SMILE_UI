@@ -6,9 +6,48 @@
   <title>Smile Brands ERP Dashboard Test Environment</title>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- Change babel configuration to support dynamic imports -->
   <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <script>
+    // Configure Babel to support dynamic imports
+    Babel.registerPreset('dynamic-imports', {
+      presets: [
+        [Babel.availablePresets['es2015'], { modules: false }],
+        Babel.availablePresets['react']
+      ],
+      plugins: [
+        [Babel.availablePlugins['syntax-dynamic-import']]
+      ]
+    });
+  </script>
   <script src="https://unpkg.com/recharts@2/umd/Recharts.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    .dashboard-button {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      background-color: #F7B801; /* Yellow-gold color */
+      color: #333;
+      font-weight: bold;
+      padding: 8px 16px;
+      border-radius: 4px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      z-index: 1000;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+    
+    .dashboard-button:hover {
+      background-color: #FFD246;
+      transform: translateY(-2px);
+    }
+    
+    .dashboard-button:active {
+      transform: translateY(0);
+    }
+  </style>
   <script>
     // Load the sample data
     let sampleData = null;
@@ -22,9 +61,16 @@
   </script>
 </head>
 <body class="bg-gray-100">
+  <button 
+    class="dashboard-button" 
+    onclick="window.location.href='/dashboard.html'"
+  >
+    Smile UI Dashboard
+  </button>
   <div id="root" class="container mx-auto p-4"></div>
   
-  <script type="text/babel">
+  <!-- Add data-preset to use our custom Babel preset -->
+  <script type="text/babel" data-preset="dynamic-imports">
     // Mock implementation of the components for testing purposes
     const TimePeriod = {
       day: 'day',
@@ -170,17 +216,35 @@
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
                 <h2 className="text-lg font-semibold text-blue-700 mb-2">Test Controls</h2>
-                <button 
-                  onClick={runTests}
-                  disabled={testResults.running}
-                  className={`px-4 py-2 rounded font-medium mr-3 ${
-                    testResults.running 
-                      ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  {testResults.running ? 'Running Tests...' : 'Run Validation Tests'}
-                </button>
+                <div className="flex gap-3 mb-3">
+                  <button
+                    onClick={runTests}
+                    disabled={testResults.running}
+                    className={`px-4 py-2 rounded font-medium ${
+                      testResults.running
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    {testResults.running ? 'Running Tests...' : 'Run Validation Tests'}
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      const chatResults = await window.runChatTests();
+                      setTestResults(prev => ({
+                        ...prev,
+                        completed: true,
+                        success: chatResults.failed === 0,
+                        message: `Chat Tests: ${chatResults.passed} passed, ${chatResults.failed} failed`,
+                        details: [...(prev.details || []), '\nChat Integration Tests:', ...chatResults.details]
+                      }));
+                    }}
+                    className="px-4 py-2 rounded font-medium bg-indigo-600 text-white hover:bg-indigo-700"
+                  >
+                    Test Chat Integration
+                  </button>
+                </div>
                 
                 <button 
                   onClick={loadSampleData}
@@ -276,6 +340,19 @@
       <TestDashboard />,
       document.getElementById('root')
     );
+  </script>
+  
+  <!-- Change these to module type and update paths if needed -->
+  <script type="module">
+    // Import the necessary modules
+    import DashboardChat from '/src/components/DashboardChat.js';
+    import KynseyAIChatBridge from '/src/components/KynseyAIChatBridge.js';
+    import { runChatTests } from '/src/tests/run-chat-tests.js';
+    
+    // Make them available to the global scope for the test environment
+    window.DashboardChat = DashboardChat;
+    window.KynseyAIChatBridge = KynseyAIChatBridge;
+    window.runChatTests = runChatTests;
   </script>
 </body>
 </html>

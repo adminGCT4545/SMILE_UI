@@ -1,68 +1,70 @@
-const http = require('http');
-const fs = require('fs');
+const express = require('express');
 const path = require('path');
+require('dotenv').config();
 
-const PORT = 3001; // Changed from 1001 to avoid permission issues
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-// Simple HTTP server
-const server = http.createServer((req, res) => {
-  // Map the URL path to file paths
-  const urlPath = req.url === '/' ? 'index.html' : req.url.replace(/^\/+/, '');
-  let filePath = path.join(__dirname, urlPath);
-  
-  // Default to index.html for directories
-  if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
-    filePath = path.join(filePath, 'index.html');
-  }
+// Serve static files from project root and Kynsey AI directory
+app.use(express.static(__dirname));
+app.use('/kynsey-ai', express.static(path.join(__dirname, 'GCT_UI_V1.0/kynsey-ai')));
 
-  // Get file extension
-  const extname = path.extname(filePath);
-  
-  // Set content type based on file extension
-  let contentType = 'text/html';
-  switch (extname) {
-    case '.js':
-      contentType = 'text/javascript';
-      break;
-    case '.css':
-      contentType = 'text/css';
-      break;
-    case '.json':
-      contentType = 'application/json';
-      break;
-    case '.png':
-      contentType = 'image/png';
-      break;
-    case '.jpg':
-      contentType = 'image/jpg';
-      break;
-    case '.svg':
-      contentType = 'image/svg+xml';
-      break;
-  }
+// Root route serves Kynsey AI interface
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'GCT_UI_V1.0/kynsey-ai/enhanced-index-html.html'));
+});
 
-  // Read and serve the file
-  fs.readFile(filePath, (err, content) => {
+// ERP Dashboard route
+app.get('/erp-dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
+});
+
+// Specific route for enhanced dashboard test
+app.get('/test/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'src', 'tests', 'enhanced-dashboard.html'), err => {
     if (err) {
-      if (err.code === 'ENOENT') {
-        res.writeHead(404);
-        res.end('File not found');
-      } else {
-        // Server error
-        res.writeHead(500);
-        res.end(`Server Error: ${err.code}`);
-      }
-      return;
+      console.error('Error serving enhanced-dashboard.html:', err);
+      res.status(404).json({
+        error: 'Test dashboard file not found',
+        message: 'The enhanced dashboard test file could not be located'
+      });
     }
-
-    // Success!
-    res.writeHead(200, { 'Content-Type': contentType });
-    res.end(content, 'utf-8');
   });
 });
 
-// Start server on port 3001
-server.listen(PORT, () => {
+// Route for other test files
+app.get('/test/*', (req, res, next) => {
+  const testFilePath = path.join(__dirname, req.path);
+  res.sendFile(testFilePath, err => {
+    if (err) next(err);
+  });
+});
+
+// Custom 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Not Found',
+    message: `The requested path ${req.path} was not found on this server`,
+    availableRoutes: {
+      dashboard: ['/', '/dashboard'],
+      test: ['/test/dashboard', '/test/*']
+    }
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    error: 'Internal Server Error',
+    message: 'An unexpected error occurred while processing your request',
+    path: req.path
+  });
+});
+
+// Start server
+app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}/`);
-  console.log(`Test dashboard available at http://localhost:${PORT}/test-dashboard`);
+  console.log(`Dashboard available at http://localhost:${PORT}/ or /dashboard`);
+  console.log(`Enhanced dashboard test available at http://localhost:${PORT}/test/dashboard`);
 });
