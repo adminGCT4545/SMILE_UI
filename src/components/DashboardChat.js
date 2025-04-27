@@ -6,7 +6,6 @@ class DashboardChat {
         this.isWaitingForResponse = false;
         this.isChatVisible = false;
         this.erpContext = null;
-        this.isTestEnvironment = window.location.pathname.includes('enhanced-dashboard.html');
     }
 
     // Initialize chat interface
@@ -21,50 +20,43 @@ class DashboardChat {
         
         // Add welcome message if no history
         if (this.conversationHistory.length === 0) {
-            if (this.isTestEnvironment) {
-                this.showTestWelcomeMessage();
-            } else {
-                this.showWelcomeMessage();
-            }
+            this.showWelcomeMessage();
         }
     }
 
     // Load ERP context data
     async loadERPContext() {
         try {
-            // First try to get dashboard state from the window object
+            // Get dashboard state from the window object
             const dashboardState = window.dashboardState || {};
             
-            // Add test environment data if available
-            if (this.isTestEnvironment) {
-                Object.assign(dashboardState, {
-                    testMode: true,
-                    testResults: window.testResults || {},
-                    customData: window.customData || null
-                });
-            }
-            
-            // Then fetch additional context from API
+            // Fetch ERP context from API
             let apiContext = {};
             try {
                 const response = await fetch('/api/erp/context');
                 if (!response.ok) throw new Error(`API returned ${response.status}`);
                 apiContext = await response.json();
             } catch (error) {
-                console.warn('Failed to fetch API context:', error);
-                // Continue with just dashboard state
+                console.warn('[DashboardChat] Failed to fetch API context:', error);
             }
 
             // Combine dashboard state with API context
             this.erpContext = {
                 ...dashboardState,
                 ...apiContext,
+                source: 'kynsey-ai',
                 timestamp: new Date().toISOString()
             };
+
+            console.log('[DashboardChat] ERP context loaded:', {
+                stateSize: Object.keys(dashboardState).length,
+                apiDataSize: Object.keys(apiContext).length
+            });
         } catch (error) {
-            console.error('Failed to load ERP context:', error);
+            console.error('[DashboardChat] Failed to load ERP context:', error);
             this.erpContext = {
                 error: 'Failed to load context',
+                source: 'kynsey-ai',
                 timestamp: new Date().toISOString()
             };
         }
@@ -80,62 +72,25 @@ class DashboardChat {
         });
     }
 
-    // Show test environment welcome message
-    showTestWelcomeMessage() {
-        const welcomeMessage = "Welcome to the test environment! I can help you validate dashboard functionality, test data scenarios, and analyze test results. How can I assist you?";
-        this.renderMessage(welcomeMessage, 'assistant-message');
-        this.conversationHistory.push({
-            role: 'assistant',
-            content: welcomeMessage
-        });
-
-        // Add test-specific suggestions
-        const suggestions = [
-            "Run validation tests",
-            "Load sample data",
-            "Help me understand test results"
-        ];
-        
-        const suggestionsDiv = document.createElement('div');
-        suggestionsDiv.className = 'test-suggestions mt-2';
-        suggestions.forEach(suggestion => {
-            const btn = document.createElement('button');
-            btn.className = 'suggestion-btn mr-2 mb-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm hover:bg-blue-200';
-            btn.textContent = suggestion;
-            btn.onclick = () => {
-                const input = this.container.querySelector('#messageInput');
-                if (input) {
-                    input.value = suggestion;
-                    input.dispatchEvent(new Event('input'));
-                }
-            };
-            suggestionsDiv.appendChild(btn);
-        });
-
-        const lastMessage = this.container.querySelector('.message:last-child');
-        if (lastMessage) {
-            lastMessage.appendChild(suggestionsDiv);
-        }
-    }
-
     // Render chat interface
     render() {
         const chatHtml = `
             <div class="dashboard-chat ${this.isChatVisible ? 'visible' : ''}">
                 <div class="chat-header">
-                    <h3>KYNSEY AI Assistant${this.isTestEnvironment ? ' (Test Mode)' : ''}</h3>
-                    <button class="toggle-chat-btn">×</button>
+                    <h3>KYNSEY AI Assistant</h3>
+                    <button class="toggle-chat-btn" title="Close Chat">×</button>
                 </div>
                 <div class="chat-messages" id="chatMessages"></div>
                 <div class="chat-input">
                     <textarea 
-                        placeholder="Type your message..."
+                        placeholder="Ask me about the ERP system or dashboard data..."
                         rows="1"
                         id="messageInput"
+                        aria-label="Chat message input"
                     ></textarea>
-                    <button id="sendMessage" disabled>Send</button>
+                    <button id="sendMessage" disabled title="Send message">Send</button>
                 </div>
-                <div class="loading-indicator" style="display: none;">
+                <div class="loading-indicator" style="display: none;" aria-live="polite">
                     <div class="typing-indicator">
                         <span></span>
                         <span></span>
@@ -143,7 +98,7 @@ class DashboardChat {
                     </div>
                 </div>
             </div>
-            <button class="chat-trigger-btn ${this.isChatVisible ? 'hidden' : ''}">
+            <button class="chat-trigger-btn ${this.isChatVisible ? 'hidden' : ''}" title="Open Chat">
                 <span>Ask Kynsey</span>
             </button>
         `;
@@ -312,17 +267,6 @@ class DashboardChat {
                 transform: translateY(150%);
             }
 
-            .test-suggestions {
-                margin-top: 8px;
-            }
-
-            .suggestion-btn {
-                transition: all 0.2s ease;
-            }
-
-            .suggestion-btn:hover {
-                transform: translateY(-1px);
-            }
         `;
 
         const styleSheet = document.createElement('style');
@@ -379,8 +323,7 @@ class DashboardChat {
 
     // Load conversation history
     loadConversationHistory() {
-        const storageKey = this.isTestEnvironment ? 'testChatHistory' : 'dashboardChatHistory';
-        const saved = localStorage.getItem(storageKey);
+        const saved = localStorage.getItem('chatHistory');
         if (saved) {
             this.conversationHistory = JSON.parse(saved);
             this.renderHistory();
@@ -389,8 +332,7 @@ class DashboardChat {
 
     // Save conversation history
     saveConversationHistory() {
-        const storageKey = this.isTestEnvironment ? 'testChatHistory' : 'dashboardChatHistory';
-        localStorage.setItem(storageKey, JSON.stringify(this.conversationHistory));
+        localStorage.setItem('chatHistory', JSON.stringify(this.conversationHistory));
     }
 
     // Render conversation history
@@ -454,24 +396,15 @@ class DashboardChat {
         try {
             this.showLoading();
 
-            // Get latest dashboard state
+            // Get latest dashboard state and prepare request
             const dashboardState = window.dashboardState || {};
             
-            // Include test-specific context if in test environment
-            const testContext = this.isTestEnvironment ? {
-                testMode: true,
-                testResults: window.testResults || {},
-                customData: window.customData || null
-            } : {};
-
-            // Prepare request data with ERP context
             const requestData = {
                 message,
                 history: this.conversationHistory.slice(-10),
                 erpContext: {
                     ...this.erpContext,
                     ...dashboardState,
-                    ...testContext,
                     timestamp: new Date().toISOString()
                 }
             };

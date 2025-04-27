@@ -46,7 +46,7 @@ app.use((req, res) => {
     error: 'Not Found',
     message: `The requested path ${req.path} was not found on this server`,
     availableRoutes: {
-      dashboard: ['/', '/dashboard'],
+      dashboard: ['/', '/dashboard', '/erp-dashboard'],
       test: ['/test/dashboard', '/test/*']
     }
   });

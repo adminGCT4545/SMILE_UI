@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smile Brands ERP Dashboard</title>
   <!-- Load dependencies -->
-  <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.js"></script>
   <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   
@@ -91,29 +92,69 @@
   <script src="./src/components/KynseyAIChatBridge.js"></script>
   
   <script type="text/babel">
+    // Define PropTypes for components
+    if (typeof PropTypes !== 'undefined') {
+      TimeFilterControl.propTypes = {
+        selectedPeriod: PropTypes.string.isRequired,
+        onPeriodChange: PropTypes.func.isRequired
+      };
+      
+      KPICard.propTypes = {
+        title: PropTypes.string.isRequired,
+        currentValue: PropTypes.number,
+        pytdValue: PropTypes.number,
+        isLoading: PropTypes.bool,
+        error: PropTypes.string,
+        valuePrefix: PropTypes.string,
+        valueSuffix: PropTypes.string
+      };
+      
+      KPICard.defaultProps = {
+        isLoading: false,
+        error: null,
+        valuePrefix: '',
+        valueSuffix: ''
+      };
+    }
     // KynseyAIChat component
     function KynseyAIChat() {
       const [isVisible, setIsVisible] = React.useState(false);
       const chatContainerId = 'kynsey-ai-chat-container';
+      const chatRef = React.useRef(null);
       
       React.useEffect(() => {
-        // Initialize chat bridge directly
-        const chatBridge = new KynseyAIChatBridge();
-        chatBridge.init(chatContainerId, (visible) => {
-          setIsVisible(visible);
-        });
+        // Initialize chat bridge with error handling
+        try {
+          console.log('[Dashboard] Initializing KynseyAIChatBridge');
+          if (typeof KynseyAIChatBridge === 'undefined') {
+            console.error('[Dashboard] KynseyAIChatBridge is not defined');
+            return;
+          }
+          
+          chatRef.current = new KynseyAIChatBridge();
+          chatRef.current.init(chatContainerId, (visible) => {
+            console.log('[Dashboard] Chat visibility changed:', visible);
+            setIsVisible(visible);
+          });
+        } catch (error) {
+          console.error('[Dashboard] Error initializing chat bridge:', error);
+        }
         
         // Cleanup on unmount
         return () => {
-          if (chatBridge) {
-            chatBridge.destroy();
+          if (chatRef.current) {
+            try {
+              chatRef.current.destroy();
+            } catch (error) {
+              console.error('[Dashboard] Error destroying chat bridge:', error);
+            }
           }
         };
       }, []);
       
       return (
         <div id="kynsey-ai-chat-root">
-          {/* Chat container will be managed by the vanilla JS implementation */}
+          <div id={chatContainerId}></div>
         </div>
       );
     }

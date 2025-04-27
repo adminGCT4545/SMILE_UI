@@ -19,8 +19,29 @@
   <div id="root" class="container mx-auto py-8 px-4"></div>
   
   <script type="text/babel">
-    // Redirect to the test dashboard page
-    window.location.href = '/src/tests/enhanced-dashboard.html';
+    // React component for root application
+    function App() {
+      React.useEffect(() => {
+        // Check if we need to redirect based on URL
+        const currentPath = window.location.pathname;
+        if (currentPath === '/index.html') {
+          window.location.replace('/');
+        }
+      }, []);
+
+      return (
+        <div className="flex justify-center items-center min-h-screen">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold mb-4">Loading GCT UI...</h1>
+            <p className="text-gray-600">Please wait while we initialize the application.</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Render the app
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
   </script>
 </body>
 </html>

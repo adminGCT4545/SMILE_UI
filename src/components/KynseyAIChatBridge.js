@@ -1,5 +1,15 @@
+/* global React, PropTypes */
 // Bridge between React and vanilla JS chat implementation
 class KynseyAIChatBridge {
+    static propTypes = {
+        onStateChange: PropTypes.func,
+        containerId: PropTypes.string
+    };
+
+    static defaultProps = {
+        containerId: 'kynsey-ai-chat-container'
+    };
+
     constructor() {
         this.chat = null;
         this.onStateChange = null;
