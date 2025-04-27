@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KYNSEY AI - Green Chip Technology</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.js"></script>
+    <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/prop-types@15.7.2/prop-types.min.js"></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     <style>
         /* Modern Reset and Base Styles */
@@ -1613,6 +1613,7 @@ Best regards,
 
                 // Handle streaming response
                 let fullResponse = '';
+                console.log('API Response:', response);
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
 
@@ -1622,6 +1623,7 @@ Best regards,
                     
                     const text = decoder.decode(value);
                     const lines = text.split('\n');
+                    console.log('Chunk:', text);
                     
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
@@ -1633,6 +1635,7 @@ Best regards,
                                 if (data.response) {
                                     fullResponse += data.response;
                                 }
+                                console.log('Full Response:', fullResponse);
                                 if (data.done) {
                                     return fullResponse;
                                 }

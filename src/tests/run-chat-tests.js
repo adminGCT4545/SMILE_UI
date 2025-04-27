@@ -132,5 +132,8 @@ function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Export for use in test environment
-window.runChatTests = runChatTests;
+// Export as ES module while maintaining global compatibility
+export { runChatTests };
+if (typeof window !== 'undefined') {
+    window.runChatTests = runChatTests;
+}

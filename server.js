@@ -8,10 +8,20 @@ const PORT = process.env.PORT || 3000;
 // Serve static files from project root and Kynsey AI directory
 app.use(express.static(__dirname));
 app.use('/kynsey-ai', express.static(path.join(__dirname, 'GCT_UI_V1.0/kynsey-ai')));
+app.use('/kynsey-ai/frontend', express.static(path.join(__dirname, 'GCT_UI_V1.0/kynsey-ai/frontend')));
 
 // Root route serves Kynsey AI interface
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'GCT_UI_V1.0/kynsey-ai/enhanced-index-html.html'));
+  res.sendFile(path.join(__dirname, 'GCT_UI_V1.0/kynsey-ai/enhanced-index-html.html'), err => {
+    if (err) {
+      console.error('Error serving enhanced-index-html.html:', err);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Failed to load the Kynsey AI interface',
+        details: err.message
+      });
+    }
+  });
 });
 
 // ERP Dashboard route

@@ -490,5 +490,8 @@ class DashboardChat {
     }
 }
 
-// Make available globally
-window.DashboardChat = DashboardChat;
+// Export as ES module while maintaining global compatibility
+export default DashboardChat;
+if (typeof window !== 'undefined') {
+    window.DashboardChat = DashboardChat;
+}

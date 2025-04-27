@@ -4,10 +4,26 @@
   "description": "SMILE UI server",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build": "webpack --mode production",
+    "dev": "webpack serve --mode development"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "prop-types": "^15.8.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.22.0",
+    "@babel/preset-env": "^7.22.0",
+    "@babel/preset-react": "^7.22.0",
+    "@babel/preset-typescript": "^7.22.0",
+    "babel-loader": "^9.1.2",
+    "webpack": "^5.85.0",
+    "webpack-cli": "^5.1.1",
+    "webpack-dev-server": "^4.15.0",
+    "typescript": "^5.0.4"
   }
 }

@@ -4,10 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smile Brands ERP Dashboard</title>
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
-  <script src="https://unpkg.com/recharts@2/umd/Recharts.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
     body {
@@ -17,31 +13,6 @@
 </head>
 <body class="bg-gray-100">
   <div id="root" class="container mx-auto py-8 px-4"></div>
-  
-  <script type="text/babel">
-    // React component for root application
-    function App() {
-      React.useEffect(() => {
-        // Check if we need to redirect based on URL
-        const currentPath = window.location.pathname;
-        if (currentPath === '/index.html') {
-          window.location.replace('/');
-        }
-      }, []);
-
-      return (
-        <div className="flex justify-center items-center min-h-screen">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold mb-4">Loading GCT UI...</h1>
-            <p className="text-gray-600">Please wait while we initialize the application.</p>
-          </div>
-        </div>
-      );
-    }
-
-    // Render the app
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-  </script>
+  <script src="./dist/bundle.js"></script>
 </body>
 </html>

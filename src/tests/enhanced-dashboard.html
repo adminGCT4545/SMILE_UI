@@ -6,6 +6,7 @@
   <title>Smile Brands ERP Dashboard Test Environment</title>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
   <!-- Change babel configuration to support dynamic imports -->
   <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
   <script>
@@ -51,7 +52,7 @@
   <script>
     // Load the sample data
     let sampleData = null;
-    fetch('/src/tests/sample-dashboard-data.json')
+    fetch('./sample-dashboard-data.json')
       .then(response => response.json())
       .then(data => {
         sampleData = data;
@@ -81,10 +82,10 @@
     };
     
     // Simple component to display the test environment
-    function TestDashboard() {
+    function TestDashboard({ dashboardData = null }) {
       const [testMode, setTestMode] = React.useState(false);
       const [customData, setCustomData] = React.useState('');
-      const [dashboardData, setDashboardData] = React.useState(null);
+      const [currentData, setCurrentData] = React.useState(dashboardData);
       const [testResults, setTestResults] = React.useState({
         running: false,
         completed: false,
@@ -119,11 +120,11 @@
         await new Promise(resolve => setTimeout(resolve, 800));
         details.push('✓ KPI cards display correct values and charts');
         
-        if (dashboardData) {
+        if (currentData) {
           details.push('\nValidating custom data structure...');
           // Simple validation logic
           const requiredKeys = ['surgicalRevenue', 'appointmentsScheduled', 'cancellations', 'activeBracesCases'];
-          const missingKeys = requiredKeys.filter(key => !dashboardData[key]);
+          const missingKeys = requiredKeys.filter(key => !currentData[key]);
           
           if (missingKeys.length > 0) {
             allPassed = false;
@@ -133,7 +134,7 @@
             
             // Check data structure
             requiredKeys.forEach(key => {
-              const kpi = dashboardData[key];
+              const kpi = currentData[key];
               if (typeof kpi.currentValue !== 'number') {
                 allPassed = false;
                 details.push(`✗ ${key}: currentValue must be a number`);
@@ -169,7 +170,7 @@
       const handleLoadCustomData = () => {
         try {
           const parsed = JSON.parse(customData);
-          setDashboardData(parsed);
+          setCurrentData(parsed);
           setTestResults(prev => ({
             ...prev,
             details: [...(prev.details || []), '✓ Custom data loaded successfully']
@@ -295,16 +296,16 @@
             
             {/* Dashboard visualization preview */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {dashboardData ? (
+              {currentData ? (
                 // Render actual KPI cards when data is available
-                Object.entries(dashboardData).map(([key, data]) => (
+                Object.entries(currentData).map(([key, data]) => (
                   <div key={key} className="bg-white shadow rounded-lg p-4">
                     <h3 className="text-lg font-medium text-gray-800 mb-2">
                       {key.replace(/([A-Z])/g, ' $1').trim()}
                     </h3>
                     <div className="text-2xl font-bold">
                       {key === 'surgicalRevenue' ? '$' : ''}
-                      {data.currentValue?.toLocaleString()}
+                      {data.currentValue ? data.currentValue.toLocaleString() : '--'}
                     </div>
                     {data.pytdValue && (
                       <div className="text-sm text-gray-500 mt-1">
@@ -335,19 +336,43 @@
       );
     }
     
-    // Render the test dashboard
-    ReactDOM.render(
-      <TestDashboard />,
-      document.getElementById('root')
-    );
+    // Define PropTypes for the TestDashboard component
+    TestDashboard.propTypes = {
+      dashboardData: PropTypes.shape({
+        surgicalRevenue: PropTypes.shape({
+          currentValue: PropTypes.number,
+          pytdValue: PropTypes.number,
+          trendData: PropTypes.array
+        }),
+        appointmentsScheduled: PropTypes.shape({
+          currentValue: PropTypes.number,
+          pytdValue: PropTypes.number,
+          trendData: PropTypes.array
+        }),
+        cancellations: PropTypes.shape({
+          currentValue: PropTypes.number,
+          pytdValue: PropTypes.number,
+          trendData: PropTypes.array
+        }),
+        activeBracesCases: PropTypes.shape({
+          currentValue: PropTypes.number,
+          pytdValue: PropTypes.number,
+          trendData: PropTypes.array
+        })
+      })
+    };
+
+    // Use React 18's createRoot
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<TestDashboard />);
   </script>
   
   <!-- Change these to module type and update paths if needed -->
   <script type="module">
     // Import the necessary modules
-    import DashboardChat from '/src/components/DashboardChat.js';
-    import KynseyAIChatBridge from '/src/components/KynseyAIChatBridge.js';
-    import { runChatTests } from '/src/tests/run-chat-tests.js';
+    import DashboardChat from '../components/DashboardChat.js';
+    import KynseyAIChatBridge from '../components/KynseyAIChatBridge.js';
+    import { runChatTests } from './run-chat-tests.js';
     
     // Make them available to the global scope for the test environment
     window.DashboardChat = DashboardChat;

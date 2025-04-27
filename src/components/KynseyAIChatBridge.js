@@ -6,11 +6,7 @@ class KynseyAIChatBridge {
         containerId: PropTypes.string
     };
 
-    static defaultProps = {
-        containerId: 'kynsey-ai-chat-container'
-    };
-
-    constructor() {
+    constructor(options = { containerId: 'kynsey-ai-chat-container' }) {
         this.chat = null;
         this.onStateChange = null;
     }
@@ -97,6 +93,9 @@ function useKynseyAIChat() {
     };
 }
 
-// Make available globally
-window.KynseyAIChatBridge = KynseyAIChatBridge;
-window.useKynseyAIChat = useKynseyAIChat;
+// Export as ES module while maintaining global compatibility
+export { KynseyAIChatBridge as default, useKynseyAIChat };
+if (typeof window !== 'undefined') {
+    window.KynseyAIChatBridge = KynseyAIChatBridge;
+    window.useKynseyAIChat = useKynseyAIChat;
+}
