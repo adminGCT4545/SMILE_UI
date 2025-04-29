@@ -85,12 +85,16 @@ const ERPDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchDataForPeriod = useCallback(async (period: TimePeriod) => {
+    console.log('[Debug] Starting data fetch for period:', period);
+    console.log('[Debug] Previous KPI data:', kpiData);
     setIsLoading(true);
     setError(null);
     setKpiData(null); // Clear previous data immediately for better UX
     try {
       const data = await mockApiFetch(period);
+      console.log('[Debug] Received data:', data);
       setKpiData(data);
+      console.log('[Debug] KPI data updated');
     } catch (err) {
       console.error("Failed to fetch KPI data:", err);
       setError("Failed to load dashboard data. Please try again later.");

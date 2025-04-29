@@ -1,33 +1,74 @@
 const express = require('express');
 const path = require('path');
+const http = require('http');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Serve static files from project root and Kynsey AI directory
-app.use(express.static(__dirname));
-app.use('/kynsey-ai', express.static(path.join(__dirname, 'GCT_UI_V1.0/kynsey-ai')));
-app.use('/kynsey-ai/frontend', express.static(path.join(__dirname, 'GCT_UI_V1.0/kynsey-ai/frontend')));
-
-// Root route serves Kynsey AI interface
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'GCT_UI_V1.0/kynsey-ai/enhanced-index-html.html'), err => {
-    if (err) {
-      console.error('Error serving enhanced-index-html.html:', err);
-      res.status(500).json({
-        error: 'Internal Server Error',
-        message: 'Failed to load the Kynsey AI interface',
-        details: err.message
-      });
+// Add proxy middleware for API requests
+app.use('/api/*', (req, res) => {
+  console.log(`Proxying API request to backend: ${req.originalUrl}`);
+  
+  // Forward request to backend server (port 3002)
+  const options = {
+    hostname: 'localhost',
+    port: 3002,
+    path: req.originalUrl,
+    method: req.method,
+    headers: {
+      ...req.headers,
+      host: 'localhost:3002'
     }
+  };
+
+  const proxyReq = http.request(options, proxyRes => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res);
   });
+
+  proxyReq.on('error', (e) => {
+    console.error(`Proxy error: ${e.message}`);
+    res.status(502).json({ 
+      error: 'Bad Gateway',
+      message: 'Failed to connect to the backend server. Please ensure it is running.' 
+    });
+  });
+
+  if (req.body) {
+    proxyReq.write(JSON.stringify(req.body));
+  }
+  
+  req.pipe(proxyReq);
 });
 
-// ERP Dashboard route
+// Parse JSON for non-proxied requests
+app.use(express.json());
+
+// Define routes first
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
+});
+
 app.get('/erp-dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
+
+app.get('/kynsey-ai', (req, res) => {
+  res.sendFile(path.join(__dirname, 'GCT_UI_V1.0/kynsey-ai/enhanced-index-html.html'));
+});
+
+// Then serve static files
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/kynsey-ai', express.static(path.join(__dirname, 'GCT_UI_V1.0/kynsey-ai')));
+app.use('/kynsey-ai/frontend', express.static(path.join(__dirname, 'GCT_UI_V1.0/kynsey-ai/frontend')));
+app.use(express.static(path.join(__dirname)));
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'healthy' });
+});
+
 
 // Specific route for enhanced dashboard test
 app.get('/test/dashboard', (req, res) => {

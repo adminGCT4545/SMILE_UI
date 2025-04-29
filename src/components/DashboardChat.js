@@ -1,11 +1,14 @@
 // Dashboard Chat Integration
 class DashboardChat {
     constructor() {
-        this.API_ENDPOINT = 'http://localhost:3002/api/chat';
+        this.API_ENDPOINT = process.env.REACT_APP_CHAT_API_ENDPOINT || 'http://localhost:3002/api/chat';
         this.conversationHistory = [];
         this.isWaitingForResponse = false;
         this.isChatVisible = false;
         this.erpContext = null;
+        this.maxRetries = 3;
+        this.retryDelay = 1000;
+        this.maxHistorySize = 50;
     }
 
     // Initialize chat interface
@@ -25,19 +28,28 @@ class DashboardChat {
     }
 
     // Load ERP context data
+    /**
+     * Load ERP context data with retries
+     */
     async loadERPContext() {
         try {
-            // Get dashboard state from the window object
-            const dashboardState = window.dashboardState || {};
+            // Get dashboard state from the window object with validation
+            const dashboardState = this.validateDashboardState(window.dashboardState);
             
-            // Fetch ERP context from API
+            // Fetch ERP context from API with retries
             let apiContext = {};
-            try {
-                const response = await fetch('/api/erp/context');
-                if (!response.ok) throw new Error(`API returned ${response.status}`);
-                apiContext = await response.json();
-            } catch (error) {
-                console.warn('[DashboardChat] Failed to fetch API context:', error);
+            for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+                try {
+                    console.log(`[DashboardChat] Fetching ERP context, attempt ${attempt}`);
+                    const response = await fetch('/api/erp/context');
+                    if (!response.ok) throw new Error(`API returned ${response.status}`);
+                    apiContext = await response.json();
+                    break;
+                } catch (error) {
+                    console.warn(`[DashboardChat] API context fetch attempt ${attempt} failed:`, error);
+                    if (attempt === this.maxRetries) break;
+                    await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
+                }
             }
 
             // Combine dashboard state with API context
@@ -322,12 +334,50 @@ class DashboardChat {
     }
 
     // Load conversation history
+    /**
+     * Load and validate conversation history
+     */
     loadConversationHistory() {
-        const saved = localStorage.getItem('chatHistory');
-        if (saved) {
-            this.conversationHistory = JSON.parse(saved);
-            this.renderHistory();
+        try {
+            const saved = localStorage.getItem('chatHistory');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                    // Trim history if it exceeds max size
+                    this.conversationHistory = parsed.slice(-this.maxHistorySize);
+                    this.renderHistory();
+                    console.log(`[DashboardChat] Loaded ${this.conversationHistory.length} messages from history`);
+                }
+            }
+        } catch (error) {
+            console.error('[DashboardChat] Error loading chat history:', error);
+            this.conversationHistory = [];
         }
+    }
+
+    /**
+     * Validate dashboard state object
+     * @param {object} state - Raw dashboard state
+     * @returns {object} - Validated state
+     */
+    validateDashboardState(state) {
+        const fallbackState = {
+            timestamp: new Date().toISOString(),
+            source: 'fallback'
+        };
+
+        if (!state || typeof state !== 'object') {
+            console.warn('[DashboardChat] Invalid dashboard state, using fallback');
+            return fallbackState;
+        }
+
+        // Ensure required fields exist
+        const validated = {
+            ...fallbackState,
+            ...state
+        };
+
+        return validated;
     }
 
     // Save conversation history
@@ -416,13 +466,27 @@ class DashboardChat {
             });
 
             // Send to API
-            const response = await fetch(this.API_ENDPOINT, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestData)
-            });
+            // Send to API with retries
+            let response;
+            for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+                try {
+                    response = await fetch(this.API_ENDPOINT, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                    
+                    if (response.ok) break;
+                    
+                    throw new Error(`API returned ${response.status}`);
+                } catch (error) {
+                    console.error(`[DashboardChat] API request attempt ${attempt} failed:`, error);
+                    if (attempt === this.maxRetries) throw error;
+                    await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
+                }
+            }
 
             console.log('[DashboardChat] API Response status:', response.status);
 

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard Tests</title>
+</head>
+<body>
+    <div id="dashboard-root"></div>
+    
+    <!-- React and dependencies -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    
+    <!-- Load dashboard components -->
+    <script src="../components/ERPDashboard.tsx"></script>
+    <script src="../components/KPICard.tsx"></script>
+    <script src="../components/TrendChart.tsx"></script>
+    <script src="../components/TimeFilterControl.tsx"></script>
+    
+    <!-- Load test script -->
+    <script src="dashboard-validation.js"></script>
+    
+    <!-- Initialize testing -->
+    <script>
+        // Mount the dashboard component
+        ReactDOM.render(
+            React.createElement(ERPDashboard),
+            document.getElementById('dashboard-root')
+        );
+        
+        // Run tests after component mount
+        setTimeout(() => {
+            console.log('Starting dashboard validation...');
+            validateDashboard();
+        }, 1000);
+    </script>
+</body>
+</html>

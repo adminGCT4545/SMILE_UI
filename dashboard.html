@@ -19,6 +19,10 @@
 <body class="bg-gray-100">
   <div id="root" class="container mx-auto p-4"></div>
 
+  <!-- Load chat components -->
+  <script type="module" src="/src/components/DashboardChat.js"></script>
+  <script type="module" src="/src/components/KynseyAIChatBridge.js"></script>
+
   <script>
     // Sample data for the dashboard
     const SAMPLE_DATA = {
@@ -87,11 +91,10 @@
     };
   </script>
   
-  <!-- Load chat components -->
-  <script src="./src/components/DashboardChat.js"></script>
-  <script src="./src/components/KynseyAIChatBridge.js"></script>
-  
   <script type="text/babel">
+    // Create root for React 18
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    
     // Define PropTypes for components
     if (typeof PropTypes !== 'undefined') {
       TimeFilterControl.propTypes = {
@@ -412,7 +415,15 @@
           </div>
           
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-800">ERP Dashboard</h2>
+            <div className="flex items-center space-x-4">
+              <h2 className="text-xl font-semibold text-gray-800">ERP Dashboard</h2>
+              <a
+                href="/kynsey-ai"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Open Kynsey AI Interface
+              </a>
+            </div>
             <TimeFilterControl
               selectedPeriod={selectedPeriod}
               onPeriodChange={handlePeriodChange}
@@ -457,11 +468,8 @@
       );
     }
     
-    // Render the app
-    ReactDOM.render(
-      <ERPDashboard />,
-      document.getElementById('root')
-    );
+    // Render the app using createRoot
+    root.render(<ERPDashboard />);
   </script>
 </body>
 </html>

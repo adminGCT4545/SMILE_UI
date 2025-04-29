@@ -51,7 +51,17 @@ const TrendChart: React.FC<TrendChartProps> = ({
   fillColor = "#bfdbfe", // Default to blue-200
 }) => {
   // Basic validation or placeholder if no data
+  console.log('[Debug] TrendChart render:', {
+    hasData: Boolean(data),
+    dataLength: data?.length,
+    dataKey,
+    xAxisKey,
+    firstDataPoint: data?.[0],
+    lastDataPoint: data?.[data?.length - 1]
+  });
+
   if (!data || data.length === 0) {
+    console.log('[Debug] TrendChart: No data available');
     return <div className="text-center text-gray-500 py-4">No data available for chart.</div>;
   }
 
@@ -79,6 +89,7 @@ const TrendChart: React.FC<TrendChartProps> = ({
             tickFormatter={(value) => typeof value === 'number' ? value.toLocaleString() : value} // Format numbers
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.05)' }}/>
+          {console.log('[Debug] TrendChart data validation passed, rendering chart')}
           <ChartElement
             type="monotone"
             dataKey={dataKey}

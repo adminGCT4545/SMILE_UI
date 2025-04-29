@@ -38,6 +38,7 @@ const KPICard: React.FC<KPICardProps> = ({
   pytdLabel = 'PYTD',
 }) => {
   const formatValue = (value: number | null | undefined): string => {
+    console.log('[Debug] KPICard formatting value:', { value, title });
     if (value === null || typeof value === 'undefined') return '-';
     return `${valuePrefix}${value.toLocaleString()}${valueSuffix}`;
   };
@@ -63,6 +64,15 @@ const KPICard: React.FC<KPICardProps> = ({
 
     // Ensure required props for chart are present if trendData is provided
     const canShowChart = trendData && trendData.length > 0 && chartType && dataKey && xAxisKey;
+    console.log('[Debug] KPICard chart validation:', {
+      title,
+      hasData: Boolean(trendData),
+      dataLength: trendData?.length,
+      chartType,
+      dataKey,
+      xAxisKey,
+      canShowChart
+    });
 
     return (
       <>

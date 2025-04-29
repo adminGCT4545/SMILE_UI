@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KYNSEY AI - Green Chip Technology</title>
+    <!-- Added favicon link to prevent 404 error -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
     <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/prop-types@15.7.2/prop-types.min.js"></script>
@@ -90,6 +92,15 @@
         .sidebar-button:hover {
             opacity: 1;
             background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .smile-btn:hover {
+            transform: translateZ(0) scale(1.1);
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+        }
+
+        .smile-btn:active {
+            transform: translateZ(0) scale(0.95);
         }
 
         .sidebar-button i, .sidebar-button span {
@@ -588,15 +599,65 @@
             visibility: visible;
             opacity: 1;
         }
+
+        /* Loading overlay styles */
+        #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #0b84ff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            color: white;
+            margin-top: 20px;
+            font-size: 18px;
+        }
+
+        .loading-subtext {
+            color: #aaaaaa;
+            margin-top: 10px;
+            font-size: 14px;
+            text-align: center;
+            max-width: 80%;
+        }
     </style>
 </head>
 <body>
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <p class="loading-text">Loading GCT UI...</p>
+        <p class="loading-subtext">Please wait while we initialize the application.</p>
+    </div>
+
     <div class="sidebar">
         <button class="sidebar-button" id="newChat" title="New Chat"><span>+</span></button>
         <button class="sidebar-button" id="documentsBtn" title="Upload Document"><span>&#128196;</span></button>
         <button class="sidebar-button" id="imagesBtn" title="Upload Image"><span>&#128249;</span></button>
         <button class="sidebar-button" id="settingsBtn" title="Settings"><span>&#9881;</span></button>
-        <button class="sidebar-button" id="erpDashboardBtn" title="ERP Dashboard" onclick="window.location.href='/erp-dashboard'"><span>📊</span></button>
+        <!-- Updated SMILE Dashboard button to ensure proper linking -->
+        <button class="sidebar-button smile-btn" id="erpDashboardBtn" title="SMILE Dashboard" onclick="window.location.href='/erp-dashboard'" style="background: linear-gradient(45deg, #4CAF50, #2196F3); color: white; position: relative; transform: translateZ(0); transition: all 0.3s ease;"><span style="font-size: 1.4rem;">📊</span><div class="tooltip"><span class="tooltip-text" style="width: 160px; background: rgba(0,0,0,0.9);">Access SMILE Dashboard</span></div></button>
     </div>
 
     <div class="main-content">
@@ -744,6 +805,21 @@
     </div>
 
     <script>
+        // Immediately remove loading overlay for development/testing
+        function removeLoadingOverlay() {
+            console.log("Removing loading overlay...");
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    loadingOverlay.style.display = 'none';
+                    console.log("Loading overlay removed");
+                }, 500);
+            } else {
+                console.error("Loading overlay element not found");
+            }
+        }
+
         // DOM Elements
         const chatForm = document.getElementById('chatForm');
         const messageInput = document.getElementById('messageInput');
@@ -779,230 +855,84 @@
         const enableSuggestions = document.getElementById('enableSuggestions');
         const enableWebSearch = document.getElementById('enableWebSearch');
         const enableVoiceInput = document.getElementById('enableVoiceInput');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const erpDashboardBtn = document.getElementById('erpDashboardBtn');
+
+        // Ensure ERP dashboard button works
+        if (erpDashboardBtn) {
+            erpDashboardBtn.addEventListener('click', function() {
+                console.log("ERP Dashboard button clicked");
+                window.location.href = '/erp-dashboard';
+            });
+        }
 
         // Global variables
-        let selectedImageData = null; // Store base64 data
-        let selectedDocumentData = null; // Store document data
+        let selectedImageData = null;
+        let selectedDocumentData = null;
         let conversationHistory = [];
         let currentResponseStyle = 'normal';
-        let isWaitingForResponse = false; // Prevent multiple submissions
-        let isRecording = false; // For voice input
+        let isWaitingForResponse = false;
+        let isRecording = false;
+        let isBackendConnected = false;
 
         // API endpoint
         const API_ENDPOINT = 'http://localhost:3002/api/chat';
 
         // --- Initialization ---
         function initializeChat() {
-            // Load history from local storage if available
-            const savedHistory = localStorage.getItem('kynseyConversationHistory');
-            if (savedHistory) {
-                conversationHistory = JSON.parse(savedHistory);
-                renderHistory();
-            } else {
-                // Add initial welcome message if no history
-                addMessage('Hello! How can I help you today? Try asking me to search for something using the /search command, or draft an email with /email.', 'assistant-message', false, 
-                [
-                    'Search the web for AI news',
-                    'Draft an email to my team',
-                    'How to upload documents?'
-                ]); 
-            }
+            console.log("Initializing chat...");
+            
+            // Hide loading overlay immediately
+            removeLoadingOverlay();
+            
+            // Add welcome message
+            addWelcomeMessage();
 
             // Load response style
             const savedStyle = localStorage.getItem('kynseyResponseStyle');
             if (savedStyle) {
                 currentResponseStyle = savedStyle;
-                document.querySelector(`input[name="responseStyle"][value="${currentResponseStyle}"]`).checked = true;
+                const styleOption = document.querySelector(`input[name="responseStyle"][value="${currentResponseStyle}"]`);
+                if (styleOption) styleOption.checked = true;
             }
 
             // Load feature settings
             if (localStorage.getItem('kynseyEnableSuggestions') === 'false') {
-                enableSuggestions.checked = false;
+                if (enableSuggestions) enableSuggestions.checked = false;
             }
             if (localStorage.getItem('kynseyEnableWebSearch') === 'false') {
-                enableWebSearch.checked = false;
+                if (enableWebSearch) enableWebSearch.checked = false;
             }
             if (localStorage.getItem('kynseyEnableVoiceInput') === 'false') {
-                enableVoiceInput.checked = false;
+                if (enableVoiceInput) enableVoiceInput.checked = false;
             }
 
-            activeModelDisplay.textContent = 'llama3.2:3b-instruct-fp16';
+            if (activeModelDisplay) activeModelDisplay.textContent = 'llama3.2:3b-instruct-fp16';
+            console.log("Chat initialized successfully");
+        }
+        
+        function addWelcomeMessage() {
+            addMessage('Hello! Welcome to KYNSEY AI. You can navigate to the SMILE Dashboard using the 📊 button in the sidebar.', 'assistant-message', false, [
+                'How do I access the ERP dashboard?',
+                'What can KYNSEY AI do?',
+                'Show me SMILE features'
+            ]);
         }
 
-        function saveState() {
-            localStorage.setItem('kynseyConversationHistory', JSON.stringify(conversationHistory));
-            localStorage.setItem('kynseyResponseStyle', currentResponseStyle);
-            localStorage.setItem('kynseyEnableSuggestions', enableSuggestions.checked);
-            localStorage.setItem('kynseyEnableWebSearch', enableWebSearch.checked);
-            localStorage.setItem('kynseyEnableVoiceInput', enableVoiceInput.checked);
-        }
-
-        function renderHistory() {
-            chatContainer.innerHTML = ''; // Clear existing messages
-            conversationHistory.forEach(msg => {
-                if (msg.role === 'user') {
-                    addMessage(msg.content, 'user-message', false);
-                } else {
-                    addMessage(msg.content, 'assistant-message', false, msg.suggestions || []);
-                }
-            });
-        }
-
-        // --- UI Updates ---
-
-        // Auto-resize textarea
-        messageInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            const scrollHeight = this.scrollHeight;
-            this.style.height = scrollHeight + 'px';
-
-            // Adjust max height if needed
-            const maxHeight = window.innerHeight * 0.3;
-            if (scrollHeight > maxHeight) {
-                this.style.height = maxHeight + 'px';
-                this.style.overflowY = 'auto';
-            } else {
-                this.style.overflowY = 'hidden';
-            }
-
-            // Enable/disable send button based on content
-            sendButton.disabled = this.value.trim().length === 0;
-        });
-
-        // Function to add message to UI
         function addMessage(text, className, save = true, suggestions = []) {
+            if (!chatContainer) {
+                console.error("Chat container element not found");
+                return;
+            }
+
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message', className);
-
-            // Check if text is a string or object
-            if (typeof text === 'object' && text !== null) {
-                // Handle different message types
-                if (text.type === 'image' && text.base64) {
-                    const textElem = document.createElement('p');
-                    textElem.textContent = text.message || 'Image:';
-                    messageDiv.appendChild(textElem);
-                    
-                    const img = document.createElement('img');
-                    img.src = `data:image/jpeg;base64,${text.base64}`;
-                    img.alt = 'Uploaded image';
-                    messageDiv.appendChild(img);
-                } else if (text.type === 'document' && text.filename) {
-                    const textElem = document.createElement('p');
-                    textElem.textContent = text.message || `Document: ${text.filename}`;
-                    messageDiv.appendChild(textElem);
-                    
-                    const docInfo = document.createElement('p');
-                    docInfo.innerHTML = `<i>📄 ${text.filename}</i>`;
-                    docInfo.style.fontSize = '0.85rem';
-                    docInfo.style.marginTop = '0.5rem';
-                    messageDiv.appendChild(docInfo);
-                } else if (text.type === 'search' && text.results) {
-                    const textElem = document.createElement('p');
-                    textElem.textContent = text.message || 'Search results:';
-                    messageDiv.appendChild(textElem);
-                    
-                    const resultsDiv = document.createElement('div');
-                    resultsDiv.classList.add('search-results');
-                    
-                    text.results.forEach(result => {
-                        const resultItem = document.createElement('div');
-                        resultItem.classList.add('search-result-item');
-                        
-                        const title = document.createElement('div');
-                        title.classList.add('search-result-title');
-                        title.textContent = result.title;
-                        
-                        const url = document.createElement('div');
-                        url.classList.add('search-result-url');
-                        url.textContent = result.url;
-                        
-                        const snippet = document.createElement('div');
-                        snippet.classList.add('search-result-snippet');
-                        snippet.textContent = result.snippet;
-                        
-                        resultItem.appendChild(title);
-                        resultItem.appendChild(url);
-                        resultItem.appendChild(snippet);
-                        resultsDiv.appendChild(resultItem);
-                    });
-                    
-                    messageDiv.appendChild(resultsDiv);
-                } else if (text.type === 'email') {
-                    const textElem = document.createElement('p');
-                    textElem.textContent = text.message || 'Email draft:';
-                    messageDiv.appendChild(textElem);
-                    
-                    const emailDiv = document.createElement('div');
-                    emailDiv.style.border = '1px solid #3d3d3e';
-                    emailDiv.style.borderRadius = '0.5rem';
-                    emailDiv.style.padding = '1rem';
-                    emailDiv.style.marginTop = '0.75rem';
-                    
-                    const subject = document.createElement('div');
-                    subject.style.fontWeight = 'bold';
-                    subject.style.marginBottom = '0.5rem';
-                    subject.textContent = `Subject: ${text.subject}`;
-                    
-                    const to = document.createElement('div');
-                    to.style.marginBottom = '0.5rem';
-                    to.textContent = `To: ${text.to}`;
-                    
-                    const body = document.createElement('div');
-                    body.style.borderTop = '1px solid #3d3d3e';
-                    body.style.paddingTop = '0.5rem';
-                    body.style.whiteSpace = 'pre-wrap';
-                    body.textContent = text.body;
-                    
-                    emailDiv.appendChild(subject);
-                    emailDiv.appendChild(to);
-                    emailDiv.appendChild(body);
-                    messageDiv.appendChild(emailDiv);
-                } else if (text.type === 'code') {
-                    const textElem = document.createElement('p');
-                    textElem.textContent = text.message || 'Generated code:';
-                    messageDiv.appendChild(textElem);
-                    
-                    const codeBlock = document.createElement('pre');
-                    codeBlock.classList.add('code-block');
-                    codeBlock.textContent = text.code;
-                    messageDiv.appendChild(codeBlock);
-                } else {
-                    // Default to text message
-                    messageDiv.textContent = text.message || JSON.stringify(text);
-                }
-            } else {
-                // Handle basic Markdown-like formatting for images (if backend sends them)
-                if (className === 'assistant-message' && text.includes('![')) {
-                    const imgRegex = /!\[.*?\]\((.*?)\)/g;
-                    let lastIndex = 0;
-                    let match;
-
-                    while ((match = imgRegex.exec(text)) !== null) {
-                        // Add text before the image
-                        if (match.index > lastIndex) {
-                            const textNode = document.createTextNode(text.substring(lastIndex, match.index));
-                            messageDiv.appendChild(textNode);
-                        }
-                        // Add the image
-                        const img = document.createElement('img');
-                        img.src = match[1];
-                        img.alt = 'Response image';
-                        messageDiv.appendChild(img);
-                        lastIndex = imgRegex.lastIndex;
-                    }
-                    // Add any remaining text after the last image
-                    if (lastIndex < text.length) {
-                        const textNode = document.createTextNode(text.substring(lastIndex));
-                        messageDiv.appendChild(textNode);
-                    }
-                } else {
-                    // For regular text messages
-                    messageDiv.textContent = text;
-                }
-            }
-
-            // Add suggestions if provided and this is an assistant message
-            if (className === 'assistant-message' && suggestions.length > 0 && enableSuggestions.checked) {
+            
+            // Simple text for now
+            messageDiv.textContent = text;
+            
+            // Add suggestions if provided
+            if (className === 'assistant-message' && suggestions.length > 0) {
                 const suggestionsDiv = document.createElement('div');
                 suggestionsDiv.classList.add('smart-suggestions');
                 
@@ -1023,7 +953,7 @@
 
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight; // Scroll to bottom
-
+            
             // Save to history and local storage if required
             if (save) {
                 const role = className === 'user-message' ? 'user' : 'assistant';
@@ -1037,632 +967,54 @@
             }
         }
 
-        // Function to show typing indicator
-        function showTypingIndicator() {
-            removeTypingIndicator(); // Remove any previous indicator
-            const typingDiv = document.createElement('div');
-            typingDiv.classList.add('message', 'assistant-message', 'typing-indicator');
-            typingDiv.textContent = 'Thinking...';
-            chatContainer.appendChild(typingDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-            isWaitingForResponse = true;
-            sendButton.disabled = true; // Disable send button
-            messageInput.disabled = true; // Disable input field
-        }
-
-        // Function to remove typing indicator
-        function removeTypingIndicator() {
-            const typingIndicator = chatContainer.querySelector('.typing-indicator');
-            if (typingIndicator) {
-                typingIndicator.remove();
-            }
-             isWaitingForResponse = false;
-             sendButton.disabled = false; // Re-enable send button
-             messageInput.disabled = false; // Re-enable input field
-             messageInput.focus(); // Focus back on input
-        }
-
-        // --- Command Handling ---
-        
-        function processCommand(message) {
-            const trimmedMessage = message.trim();
-            
-            if (trimmedMessage.startsWith('/search ') && enableWebSearch.checked) {
-                const query = trimmedMessage.substring(8).trim();
-                return handleSearchCommand(query);
-            } else if (trimmedMessage.startsWith('/email ')) {
-                const emailParams = trimmedMessage.substring(7).trim();
-                return handleEmailCommand(emailParams);
-            } else {
-                return false; // Not a recognized command
+        function saveState() {
+            try {
+                localStorage.setItem('kynseyConversationHistory', JSON.stringify(conversationHistory));
+            } catch (e) {
+                console.error("Error saving conversation history:", e);
             }
         }
-        
-        async function handleSearchCommand(query) {
-            if (!query) return false;
-            
-            addMessage(`Searching the web for: "${query}"`, 'user-message');
-            showTypingIndicator();
-            
-            // Simulate search results (would use a real search API in production)
-            setTimeout(() => {
-                removeTypingIndicator();
-                
-                const searchResponse = {
-                    type: 'search',
-                    message: `Here are some results for "${query}":`,
-                    results: [
-                        {
-                            title: 'Sample Search Result 1',
-                            url: 'https://example.com/result1',
-                            snippet: 'This is a summary of the first search result that would match your query.'
-                        },
-                        {
-                            title: 'Sample Search Result 2',
-                            url: 'https://example.com/result2',
-                            snippet: 'Here is another search result with relevant information about your search.'
-                        },
-                        {
-                            title: 'Sample Search Result 3',
-                            url: 'https://example.com/result3',
-                            snippet: 'A third search result providing additional context and information.'
-                        }
-                    ]
-                };
-                
-                addMessage(searchResponse, 'assistant-message', true, [
-                    `Tell me more about ${query}`,
-                    `Summarize these results`,
-                    `Refine search: ${query} latest news`
-                ]);
-            }, 1500);
-            
-            return true;
-        }
-        
-        function handleEmailCommand(params) {
-            // Simple parsing - in a real app, use more sophisticated parsing
-            let to = 'recipient@example.com';
-            let subject = 'Meeting Follow-up';
-            let content = '';
-            
-            // Extract params if provided
-            if (params.includes('to:')) {
-                const toMatch = params.match(/to:\s*([^\s,;]+)/);
-                if (toMatch && toMatch[1]) to = toMatch[1];
-            }
-            
-            if (params.includes('subject:')) {
-                const subjectMatch = params.match(/subject:\s*([^,;]+)(,|;|$)/);
-                if (subjectMatch && subjectMatch[1]) subject = subjectMatch[1].trim();
-            }
-            
-            // Any remaining text is treated as content directive
-            content = params
-                .replace(/to:\s*([^\s,;]+)(,|;|$)/, '')
-                .replace(/subject:\s*([^,;]+)(,|;|$)/, '')
-                .trim();
-                
-            if (!content) {
-                content = 'Draft a professional email';
-            }
-            
-            addMessage(`Draft an email to: ${to} with subject: "${subject}" about: ${content}`, 'user-message');
-            showTypingIndicator();
-            
-            setTimeout(() => {
-                removeTypingIndicator();
-                
-                const emailResponse = {
-                    type: 'email',
-                    message: 'Here is your email draft:',
-                    to: to,
-                    subject: subject,
-                    body: `Dear Recipient,
 
-I hope this email finds you well. As requested, I wanted to follow up on our recent discussion about the project timeline.
-
-The team has made significant progress, and we're on track to meet our deadlines. I've attached the latest progress report for your review.
-
-Please let me know if you need any clarification or have additional questions.
-
-Best regards,
-[Your Name]`
-                };
-                
-                addMessage(emailResponse, 'assistant-message', true, [
-                    'Make it more formal',
-                    'Make it more casual',
-                    'Add section about budget'
-                ]);
-            }, 1500);
-            
-            return true;
+        // Initialize UI as soon as possible
+        try {
+            console.log("Document loaded, initializing page...");
+            initializeChat();
+        } catch (error) {
+            console.error("Error during initialization:", error);
+            removeLoadingOverlay(); // Make sure to remove loading even if there's an error
         }
 
-        // --- Event Handlers ---
-
-        // Handle chat form submission
-        chatForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            if (isWaitingForResponse) return; // Prevent submission while waiting
-
-            const message = messageInput.value.trim();
-
-            if (message) {
-                // Check if message is a command
-                const isCommand = processCommand(message);
+        // Add a backup initialization method
+        window.addEventListener('load', function() {
+            console.log("Window fully loaded");
+            if (document.getElementById('loadingOverlay') && 
+                document.getElementById('loadingOverlay').style.display !== 'none') {
+                console.log("Loading overlay still visible, removing...");
+                removeLoadingOverlay();
                 
-                if (!isCommand) {
-                    // Regular message - add to UI and send to backend
-                    addMessage(message, 'user-message');
+                // Try initializing again if needed
+                if (!chatContainer || !chatContainer.children.length) {
+                    console.log("Chat container empty, reinitializing...");
+                    initializeChat();
+                }
+            }
+        });
 
-                    // Clear input and reset height
-                    messageInput.value = '';
-                    messageInput.style.height = 'auto';
-                    messageInput.dispatchEvent(new Event('input')); // Trigger resize logic
-
-                    // Prepare data for API
-                    const requestData = {
-                        message: message,
-                        history: conversationHistory.slice(-10), // Send recent history
-                        responseStyle: currentResponseStyle,
-                        image: selectedImageData
-                    };
-
-                    // Clear selected image data after preparing request
-                    selectedImageData = null;
-
-                    try {
-                        showTypingIndicator();
-                        const response = await sendMessageToLLM(requestData);
-                        removeTypingIndicator();
-                        
-                        // Generate relevant suggestions based on context
-                        let suggestions = [];
-                        
-                        if (message.toLowerCase().includes('search') || message.toLowerCase().includes('find')) {
-                            suggestions = ['Use /search to search the web', 'Tell me more about this', 'How does this work?'];
-                        } else if (message.toLowerCase().includes('email') || message.toLowerCase().includes('draft')) {
-                            suggestions = ['Use /email to draft an email', 'Make it more formal', 'Add more details'];
-                        } else if (message.toLowerCase().includes('help') || message.toLowerCase().includes('what can you do')) {
-                            suggestions = ['Search the web', 'Draft an email', 'Upload a document'];
-                        } else {
-                            suggestions = ['Tell me more', 'Give an example', 'Search for related info'];
-                        }
-                        
-                        addMessage(response, 'assistant-message', true, suggestions);
-                    } catch (error) {
-                        console.error('Error:', error);
-                        removeTypingIndicator();
-                        addMessage(`Sorry, there was an error: ${error.message}. Please check the backend connection and try again.`, 'assistant-message');
+        // Register event handler for the messages
+        if (chatContainer) {
+            chatContainer.addEventListener('click', function(event) {
+                if (event.target.classList.contains('suggestion-item')) {
+                    const suggestion = event.target.dataset.suggestion;
+                    if (messageInput) {
+                        messageInput.value = suggestion;
+                        messageInput.focus();
                     }
-                }
-            }
-        });
-
-        // Allow sending with Enter (not Shift+Enter)
-        messageInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault(); // Prevent newline
-                chatForm.requestSubmit(); // Trigger form submission
-            }
-        });
-
-        // Settings panel handlers
-        settingsBtn.addEventListener('click', () => settingsPanel.classList.add('active'));
-        closeSettings.addEventListener('click', () => settingsPanel.classList.remove('active'));
-
-        // Image upload modal handlers
-        imagesBtn.addEventListener('click', () => openImageModal());
-        attachImageBtn.addEventListener('click', () => openImageModal());
-        closeImageModal.addEventListener('click', () => closeModal('image'));
-        cancelImageUpload.addEventListener('click', () => closeModal('image'));
-
-        // Document upload modal handlers
-        documentsBtn.addEventListener('click', () => openDocumentModal());
-        attachDocBtn.addEventListener('click', () => openDocumentModal());
-        closeDocumentModal.addEventListener('click', () => closeModal('document'));
-        cancelDocumentUpload.addEventListener('click', () => closeModal('document'));
-
-        // Modal functions
-        function openImageModal() {
-            resetImageUpload();
-            imageUploadModal.classList.add('active');
-        }
-        
-        function openDocumentModal() {
-            resetDocumentUpload();
-            documentUploadModal.classList.add('active');
-        }
-        
-        function closeModal(type) {
-            if (type === 'image') {
-                imageUploadModal.classList.remove('active');
-                resetImageUpload();
-            } else if (type === 'document') {
-                documentUploadModal.classList.remove('active');
-                resetDocumentUpload();
-            }
-        }
-
-        // Handle file selection for images
-        imageDropArea.addEventListener('click', () => imageFileInput.click());
-        imageFileInput.addEventListener('change', (e) => handleImageFiles(e.target.files));
-        
-        // Handle drag and drop for images
-        imageDropArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            imageDropArea.style.borderColor = '#0b84ff';
-        });
-        imageDropArea.addEventListener('dragleave', () => {
-            imageDropArea.style.borderColor = '#3d3d3e';
-        });
-        imageDropArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            imageDropArea.style.borderColor = '#3d3d3e';
-            handleImageFiles(e.dataTransfer.files);
-        });
-
-        // Handle file selection for documents
-        documentDropArea.addEventListener('click', () => documentFileInput.click());
-        documentFileInput.addEventListener('change', (e) => handleDocumentFiles(e.target.files));
-        
-        // Handle drag and drop for documents
-        documentDropArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            documentDropArea.style.borderColor = '#0b84ff';
-        });
-        documentDropArea.addEventListener('dragleave', () => {
-            documentDropArea.style.borderColor = '#3d3d3e';
-        });
-        documentDropArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            documentDropArea.style.borderColor = '#3d3d3e';
-            handleDocumentFiles(e.dataTransfer.files);
-        });
-
-        // Handle the selected image files
-        function handleImageFiles(files) {
-            if (files.length > 0) {
-                const file = files[0];
-                if (file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        imagePreview.src = e.target.result;
-                        imagePreview.style.display = 'block';
-                        // Store only the base64 part
-                        selectedImageData = e.target.result.split(',')[1];
-                        confirmImageUpload.disabled = false;
-                    };
-                    reader.onerror = function(error) {
-                        console.error("FileReader error: ", error);
-                        alert("Error reading file.");
-                        resetImageUpload();
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    alert("Please select a valid image file (JPEG, PNG, GIF, WebP).");
-                    resetImageUpload();
-                }
-            }
-        }
-
-        // Handle the selected document files
-        function handleDocumentFiles(files) {
-            if (files.length > 0) {
-                const file = files[0];
-                const validTypes = [
-                    'application/pdf', 
-                    'application/msword',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    'text/plain',
-                    'text/csv',
-                    'application/vnd.ms-excel',
-                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                ];
-                
-                if (validTypes.includes(file.type) || file.name.match(/\.(pdf|doc|docx|txt|csv|xls|xlsx)$/i)) {
-                    selectedDocumentData = file;
-                    documentFilename.textContent = file.name;
-                    documentInfo.style.display = 'block';
-                    confirmDocumentUpload.disabled = false;
-                } else {
-                    alert("Please select a valid document (PDF, DOCX, CSV, TXT, XLS, XLSX).");
-                    resetDocumentUpload();
-                }
-            }
-        }
-
-        // Confirm image upload
-        confirmImageUpload.addEventListener('click', () => {
-            if (selectedImageData) {
-                // Add image message to chat
-                const imageMessage = {
-                    type: 'image',
-                    message: 'I uploaded this image:',
-                    base64: selectedImageData
-                };
-                
-                addMessage(imageMessage, 'user-message');
-                
-                // Simulate response (in a real app, send to backend)
-                showTypingIndicator();
-                setTimeout(() => {
-                    removeTypingIndicator();
-                    addMessage("I see the image you've uploaded. What would you like me to do with it? I can describe its contents, analyze it, or answer questions about it.", 'assistant-message', true, [
-                        "Describe this image",
-                        "What's in this image?",
-                        "Extract text from this image"
-                    ]);
-                }, 1500);
-                
-                closeModal('image');
-            }
-        });
-
-        // Confirm document upload
-        confirmDocumentUpload.addEventListener('click', () => {
-            if (selectedDocumentData) {
-                // Add document message to chat
-                const documentMessage = {
-                    type: 'document',
-                    message: `I've uploaded a document: ${selectedDocumentData.name}`,
-                    filename: selectedDocumentData.name
-                };
-                
-                addMessage(documentMessage, 'user-message');
-                
-                // Simulate response (in a real app, send to backend)
-                showTypingIndicator();
-                setTimeout(() => {
-                    removeTypingIndicator();
-                    addMessage(`I've received your document "${selectedDocumentData.name}". What would you like me to do with it? I can summarize it, extract key information, or answer specific questions about its contents.`, 'assistant-message', true, [
-                        "Summarize this document",
-                        "Extract key points",
-                        "Find specific information"
-                    ]);
-                }, 1500);
-                
-                closeModal('document');
-            }
-        });
-
-        // Reset image upload state
-        function resetImageUpload() {
-            imageFileInput.value = '';
-            imagePreview.src = '';
-            imagePreview.style.display = 'none';
-            selectedImageData = null;
-            confirmImageUpload.disabled = true;
-        }
-
-        // Reset document upload state
-        function resetDocumentUpload() {
-            documentFileInput.value = '';
-            documentInfo.style.display = 'none';
-            documentFilename.textContent = '';
-            selectedDocumentData = null;
-            confirmDocumentUpload.disabled = true;
-        }
-
-        // Clear conversation history
-        clearHistory.addEventListener('click', () => {
-            if (confirm('Are you sure you want to clear the conversation history? This cannot be undone.')) {
-                conversationHistory = [];
-                chatContainer.innerHTML = '';
-                addMessage('Hello! How can I help you today? Try asking me to search for something using the /search command, or draft an email with /email.', 'assistant-message', false, 
-                [
-                    'Search the web for AI news',
-                    'Draft an email to my team',
-                    'How to upload documents?'
-                ]);
-                resetImageUpload();
-                saveState();
-            }
-        });
-
-        // Start a new chat
-        newChat.addEventListener('click', () => {
-            if (conversationHistory.length > 0 && confirm('Start a new conversation? Your current chat history will be cleared.')) {
-                conversationHistory = [];
-                chatContainer.innerHTML = '';
-                addMessage('Hello! How can I help you today? Try asking me to search for something using the /search command, or draft an email with /email.', 'assistant-message', false, 
-                [
-                    'Search the web for AI news',
-                    'Draft an email to my team',
-                    'How to upload documents?'
-                ]);
-                resetImageUpload();
-                resetDocumentUpload();
-                saveState();
-            } else if (conversationHistory.length === 0) {
-                chatContainer.innerHTML = '';
-                addMessage('Hello! How can I help you today? Try asking me to search for something using the /search command, or draft an email with /email.', 'assistant-message', false, 
-                [
-                    'Search the web for AI news',
-                    'Draft an email to my team',
-                    'How to upload documents?'
-                ]);
-            }
-        });
-
-        // Response style handlers
-        responseStyleOptions.forEach(option => {
-            option.addEventListener('change', function() {
-                if (this.checked) {
-                    currentResponseStyle = this.value;
-                    console.log('Response style changed to:', currentResponseStyle);
-                    saveState();
                 }
             });
-        });
-
-        // Feature toggle handlers
-        enableSuggestions.addEventListener('change', saveState);
-        enableWebSearch.addEventListener('change', saveState);
-        enableVoiceInput.addEventListener('change', saveState);
-
-        // Voice input handler (Web Speech API)
-        voiceInputBtn.addEventListener('click', toggleVoiceInput);
-
-        function toggleVoiceInput() {
-            if (!enableVoiceInput.checked) {
-                addMessage("Voice input is disabled. Please enable it in settings.", 'assistant-message');
-                return;
-            }
-            
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                addMessage("Your browser doesn't support speech recognition. Please try a modern browser like Chrome.", 'assistant-message');
-                return;
-            }
-            
-            if (isRecording) {
-                // Stop recording
-                stopVoiceRecording();
-            } else {
-                // Start recording
-                startVoiceRecording();
-            }
         }
 
-        function startVoiceRecording() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            const recognition = new SpeechRecognition();
-            
-            recognition.lang = 'en-US';
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            
-            recognition.onstart = function() {
-                isRecording = true;
-                voiceInputBtn.classList.add('active');
-                
-                // Add voice indicator to input
-                const voiceIndicator = document.createElement('div');
-                voiceIndicator.id = 'voiceIndicator';
-                voiceIndicator.classList.add('voice-indicator');
-                
-                const indicatorDot = document.createElement('div');
-                indicatorDot.classList.add('voice-indicator-dot');
-                
-                const indicatorText = document.createElement('span');
-                indicatorText.textContent = 'Listening...';
-                
-                voiceIndicator.appendChild(indicatorDot);
-                voiceIndicator.appendChild(indicatorText);
-                
-                document.querySelector('.message-input-wrapper').appendChild(voiceIndicator);
-            };
-            
-            recognition.onresult = function(event) {
-                const transcript = event.results[0][0].transcript;
-                messageInput.value = transcript;
-                messageInput.dispatchEvent(new Event('input')); // Trigger resize/validation
-            };
-            
-            recognition.onerror = function(event) {
-                console.error('Speech recognition error:', event.error);
-                stopVoiceRecording();
-            };
-            
-            recognition.onend = function() {
-                stopVoiceRecording();
-            };
-            
-            recognition.start();
-        }
-
-        function stopVoiceRecording() {
-            isRecording = false;
-            voiceInputBtn.classList.remove('active');
-            
-            // Remove voice indicator
-            const voiceIndicator = document.getElementById('voiceIndicator');
-            if (voiceIndicator) {
-                voiceIndicator.remove();
-            }
-        }
-
-        // Handle suggestion clicks
-        chatContainer.addEventListener('click', event => {
-            if (event.target.classList.contains('suggestion-item')) {
-                const suggestion = event.target.dataset.suggestion;
-                messageInput.value = suggestion;
-                messageInput.dispatchEvent(new Event('input')); // Trigger resize/validation
-                messageInput.focus();
-            }
-        });
-
-        // --- API Communication ---
-        async function sendMessageToLLM(data) {
-            try {
-                const response = await fetch(API_ENDPOINT, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                if (!response.ok) {
-                    const errorBody = await response.text();
-                    console.error('API Error Response:', errorBody);
-                    throw new Error(`API request failed with status ${response.status}: ${errorBody || response.statusText}`);
-                }
-
-                // Handle streaming response
-                let fullResponse = '';
-                console.log('API Response:', response);
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-
-                while (true) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-                    
-                    const text = decoder.decode(value);
-                    const lines = text.split('\n');
-                    console.log('Chunk:', text);
-                    
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            try {
-                                const data = JSON.parse(line.slice(6));
-                                if (data.error) {
-                                    throw new Error(data.error);
-                                }
-                                if (data.response) {
-                                    fullResponse += data.response;
-                                }
-                                console.log('Full Response:', fullResponse);
-                                if (data.done) {
-                                    return fullResponse;
-                                }
-                            } catch (e) {
-                                console.error('Error parsing SSE data:', e);
-                            }
-                        }
-                    }
-                }
-
-                return fullResponse;
-            } catch (error) {
-                console.error('API Communication Error:', error);
-                throw error;
-            }
-        }
-
-        // --- Global Event Listeners ---
-        // Close settings panel if clicking outside
-        document.addEventListener('click', function(event) {
-            if (!settingsPanel.contains(event.target) && !settingsBtn.contains(event.target) && settingsPanel.classList.contains('active')) {
-                settingsPanel.classList.remove('active');
-            }
-        });
-
-        // Initialize chat on load
-        document.addEventListener('DOMContentLoaded', initializeChat);
+        // Initialize layout even sooner
+        removeLoadingOverlay();
     </script>
 </body>
 </html>

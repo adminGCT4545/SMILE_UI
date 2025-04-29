@@ -33,10 +33,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Middleware
+// Configure CORS based on environment
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:3001,http://localhost:1001')
+  .split(',')
+  .map(origin => origin.trim());
+
 app.use(cors({
-  origin: '*', // Allow all origins
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS']
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '50mb' })); // Increase limit for base64 images
 app.use(logApiRequest); // Log all API requests
@@ -73,12 +85,51 @@ app.use('/api/document', documentRoutes);
 app.use('/api/voice', voiceInputRoutes);
 
 // --- Enhanced Chat Endpoint with Command Detection ---
-app.post('/api/chat', async (req, res) => {
-    const { message, history = [], responseStyle = activeStyle, image = null } = req.body;
+// Message format validation middleware
+const validateChatRequest = (req, res, next) => {
+    const { message, history, erpContext } = req.body;
 
-    if (!message && !image) {
-        return res.status(400).json({ error: 'No message or image provided' });
+    // Validate message
+    if (!message && !req.body.image) {
+        return res.status(400).json({
+            error: 'Invalid request',
+            details: 'Message or image is required'
+        });
     }
+
+    // Validate history format
+    if (history && !Array.isArray(history)) {
+        return res.status(400).json({
+            error: 'Invalid request',
+            details: 'History must be an array'
+        });
+    }
+
+    // Validate ERP context
+    if (erpContext) {
+        if (typeof erpContext !== 'object') {
+            return res.status(400).json({
+                error: 'Invalid request',
+                details: 'ERP context must be an object'
+            });
+        }
+
+        // Validate required ERP context fields
+        const requiredFields = ['timestamp', 'source'];
+        const missingFields = requiredFields.filter(field => !erpContext[field]);
+        if (missingFields.length > 0) {
+            return res.status(400).json({
+                error: 'Invalid request',
+                details: `Missing required ERP context fields: ${missingFields.join(', ')}`
+            });
+        }
+    }
+
+    next();
+};
+
+app.post('/api/chat', validateChatRequest, async (req, res) => {
+    const { message, history = [], responseStyle = activeStyle, image = null, erpContext } = req.body;
 
     try {
         // Check for special commands - handled by the client but can also be handled here
@@ -271,20 +322,47 @@ app.get('/', (req, res) => {
     res.send('KYNSEY AI Backend is running!');
 });
 
-// Feature status endpoint
-app.get('/api/status', (req, res) => {
+// Health check endpoint
+app.get('/health', (req, res) => {
     res.json({
-        version: '2.0.0',
-        features: {
-            search: true,
-            email: true,
-            document: true,
-            voice: true,
-            smartSuggestions: true
-        },
-        activeModel: activeModel,
-        activeStyle: activeStyle
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
     });
+});
+
+// Enhanced status endpoint
+app.get('/api/status', async (req, res) => {
+    try {
+        // Check Ollama connectivity
+        const ollamaHealth = await ollama.show({ name: activeModel })
+            .then(() => true)
+            .catch(() => false);
+
+        res.json({
+            status: 'operational',
+            version: '2.0.0',
+            features: {
+                search: true,
+                email: true,
+                document: true,
+                voice: true,
+                smartSuggestions: true
+            },
+            system: {
+                activeModel,
+                activeStyle,
+                ollamaConnected: ollamaHealth,
+                nodeVersion: process.version,
+                memory: process.memoryUsage()
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            error: error.message
+        });
+    }
 });
 
 // Export the app for testing purposes

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Tests</title>
+    
+    <!-- Load Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Load Recharts for chart rendering -->
+    <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- Test Results Container -->
+    <div id="test-results" class="p-4 bg-gray-100 mt-4">
+        <h3 class="text-lg font-semibold mb-2">Test Results</h3>
+        <pre id="test-output" class="bg-white p-4 rounded shadow-sm overflow-auto max-h-96"></pre>
+    </div>
+
+    <!-- Load bundled test code -->
+    <script>
+        // Capture console output for test results
+        const testOutput = document.getElementById('test-output');
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn
+        };
+
+        function formatMessage(type, ...args) {
+            const timestamp = new Date().toLocaleTimeString();
+            return `[${timestamp}] [${type}] ${args.join(' ')}\n`;
+        }
+
+        console.log = (...args) => {
+            originalConsole.log(...args);
+            testOutput.textContent += formatMessage('INFO', ...args);
+        };
+
+        console.error = (...args) => {
+            originalConsole.error(...args);
+            testOutput.textContent += formatMessage('ERROR', ...args);
+        };
+
+        console.warn = (...args) => {
+            originalConsole.warn(...args);
+            testOutput.textContent += formatMessage('WARN', ...args);
+        };
+    </script>
+    
+    <!-- Load test bundle -->
+    <script src="dashboard-test.bundle.js"></script>
+</body>
+</html>
